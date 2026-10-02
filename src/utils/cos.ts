@@ -9,6 +9,20 @@ const COS_CONFIG = {
   Region: (import.meta.env.VITE_COS_REGION as string) || 'ap-guangzhou',
 }
 
+// ─── 密码哈希工具（防误碰，非安全加密）──────────────────────────────────────
+/** 简单哈希：非加密安全，仅用于防止房间号撞车时误进入 */
+export function hashPassword(password: string): string {
+  let hash = 0
+  const str = password + '::trpg-salt-v1'
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + ch
+    hash |= 0
+  }
+  // 转为无符号 hex
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
 let cosInstance: COS | null = null
 
 /** 获取 COS 实例（永久密钥直传，单例） */

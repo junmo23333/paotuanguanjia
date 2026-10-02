@@ -8,7 +8,8 @@ import type { Campaign, Character, GiftRequest, GiftGive, ShopData, ShopOrder } 
 export const useCloudStore = defineStore('cloud', () => {
   // 状态
   const connected = ref(false)
-  const roomPassword = ref('')
+  const roomPassword = ref('')       // 房间号（COS 路径用）
+  const roomSecret = ref('')         // 房间密码（访问校验用）
   const roomIndex = ref<cos.RoomIndex | null>(null)
   const syncing = ref(false)
   const syncMessage = ref('')
@@ -55,6 +56,7 @@ export const useCloudStore = defineStore('cloud', () => {
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify({
         room: roomPassword.value,
+        secret: roomSecret.value,
         isGM: isGM.value,
         myCharacterId: myCharacterId.value,
       }))
@@ -72,8 +74,8 @@ export const useCloudStore = defineStore('cloud', () => {
       if (!raw) return false
       const saved = JSON.parse(raw)
       if (!saved.room) return false
-      const pwd = saved.isGM ? saved.room + 'GM' : saved.room
-      const res = await connectRoom(pwd)
+      // 自动重连：房间号 + 密码
+      const res = await connectRoom(saved.room, saved.secret || '', saved.isGM || false)
       if (!res.success) { clearSession(); return false }
       if (saved.myCharacterId) claimCharacter(saved.myCharacterId)
       if (saved.isGM) { try { await pullRequests() } catch {} }
@@ -85,29 +87,49 @@ export const useCloudStore = defineStore('cloud', () => {
   }
 
   // ─── 连接房间 ───────────────────────────────────────────────────────────────
-  async function connectRoom(inputPassword: string): Promise<{ success: boolean; error?: string; meta?: any; index?: cos.RoomIndex; isGM?: boolean }> {
-    const trimmed = inputPassword.trim()
+  /**
+   * 连接房间
+   * @param roomId    房间号（COS 路径标识）
+   * @param secret    房间密码（访问校验）
+   * @param autoGM    自动重连时直接传入是否 GM（跳过后缀解析）
+   */
+  async function connectRoom(roomId: string, secret: string, autoGM?: boolean): Promise<{ success: boolean; error?: string; meta?: any; index?: cos.RoomIndex; isGM?: boolean }> {
+    const room = roomId.trim()
     autoReconnected.value = false
-    // GM 密码规则：基础密码 + "GM" 后缀（如 521321GM）。云端路径统一用剥除后的房间号。
+
+    // GM 判定：优先用 autoGM（自动重连），否则检查房间号是否以 GM 结尾
     let gm = false
-    let room = trimmed
-    if (room.toUpperCase().endsWith('GM')) {
+    let pathRoom = room
+    if (autoGM !== undefined) {
+      gm = autoGM
+    } else if (room.toUpperCase().endsWith('GM')) {
       gm = true
-      room = room.slice(0, -2)
+      pathRoom = room.slice(0, -2)
     }
-    roomPassword.value = room
+
+    roomPassword.value = pathRoom
+    roomSecret.value = secret
     isGM.value = gm
 
     // 尝试拉取 meta + index
     const [meta, index] = await Promise.all([
-      cos.fetchRoomMeta(room),
-      cos.fetchRoomIndex(room),
+      cos.fetchRoomMeta(pathRoom),
+      cos.fetchRoomIndex(pathRoom),
     ])
 
     if (!meta && !index) {
-      // 房间不存在（空密码或全新房间）
+      // 房间不存在
       connected.value = false
-      return { success: false, error: '房间不存在或尚未初始化。如果你是 DM，请先在本地创建战役后点"上传到云端"。' }
+      return { success: false, error: '房间不存在或尚未初始化。如果你是 DM，请先创建房间。' }
+    }
+
+    // 校验房间密码（meta 中存了哈希）
+    if (meta?.room_password_hash) {
+      const inputHash = cos.hashPassword(secret)
+      if (inputHash !== meta.room_password_hash) {
+        connected.value = false
+        return { success: false, error: '房间密码不正确。' }
+      }
     }
 
     connected.value = true
@@ -143,7 +165,7 @@ export const useCloudStore = defineStore('cloud', () => {
     try {
       const password = roomPassword.value
 
-      // 上传 meta（战役基本信息，不含角色详情）
+      // 上传 meta（战役基本信息 + 房间密码哈希）
       const meta = {
         id: campaign.id,
         name: campaign.name,
@@ -152,6 +174,7 @@ export const useCloudStore = defineStore('cloud', () => {
         description: campaign.description,
         currencies: campaign.currencies,
         base_currency: campaign.base_currency,
+        room_password_hash: cos.hashPassword(roomSecret.value),  // 房间密码哈希
         created_at: campaign.created_at,
         updated_at: new Date().toISOString(),
       }
@@ -297,6 +320,7 @@ export const useCloudStore = defineStore('cloud', () => {
       description: campaign.description,
       currencies: campaign.currencies,
       base_currency: campaign.base_currency,
+      room_password_hash: cos.hashPassword(roomSecret.value),
       created_at: campaign.created_at,
       updated_at: new Date().toISOString(),
     }
@@ -671,6 +695,7 @@ export const useCloudStore = defineStore('cloud', () => {
   function disconnect() {
     connected.value = false
     roomPassword.value = ''
+    roomSecret.value = ''
     roomIndex.value = null
     syncMessage.value = ''
     lastSyncTime.value = null
@@ -685,7 +710,7 @@ export const useCloudStore = defineStore('cloud', () => {
 
   return {
     // 状态
-    connected, roomPassword, roomIndex, syncing, syncMessage, lastSyncTime,
+    connected, roomPassword, roomSecret, roomIndex, syncing, syncMessage, lastSyncTime,
     isGM, myCharacterId, requests, myRequests, currentRoomCampaignId,
     // 计算属性
     isOnline,

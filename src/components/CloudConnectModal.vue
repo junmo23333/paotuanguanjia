@@ -10,7 +10,8 @@ const campaignStore = useCampaignStore()
 
 // 模式：join（加入房间）或 host（创建新房间）
 const mode = ref<'join' | 'host'>('join')
-const password = ref('')
+const roomId = ref('')       // 房间号
+const roomSecret = ref('')   // 房间密码
 const step = ref<'input' | 'connecting' | 'claim' | 'success' | 'error'>('input')
 const errorMsg = ref('')
 
@@ -19,7 +20,11 @@ const selectedCampaignId = ref('')
 const localCampaigns = computed(() => campaignStore.campaigns)
 
 async function handleJoin() {
-  if (!password.value.trim()) {
+  if (!roomId.value.trim()) {
+    errorMsg.value = '请输入房间号'
+    return
+  }
+  if (!roomSecret.value.trim()) {
     errorMsg.value = '请输入房间密码'
     return
   }
@@ -27,14 +32,19 @@ async function handleJoin() {
   errorMsg.value = ''
 
   try {
-    const result = await cloud.connectRoom(password.value.trim())
+    // GM 密码规则：房间号以 GM 结尾则为 GM 身份
+    const inputRoom = roomId.value.trim()
+    let gm = false
+    let actualRoom = inputRoom
+    if (actualRoom.toUpperCase().endsWith('GM')) {
+      gm = true
+      actualRoom = actualRoom.slice(0, -2)
+    }
+    const result = await cloud.connectRoom(actualRoom, roomSecret.value.trim(), gm)
     if (result.success) {
-      // 拉取数据并加载到本地
       const campaign = await cloud.pullRoom()
       if (campaign) {
-        // 保存到本地
         await campaignStore.updateCampaign(campaign)
-        // GM 直接进（可操作全部角色）；玩家需先认领一个角色
         step.value = cloud.isGM ? 'success' : 'claim'
       } else {
         step.value = 'error'
@@ -51,7 +61,11 @@ async function handleJoin() {
 }
 
 async function handleHost() {
-  if (!password.value.trim()) {
+  if (!roomId.value.trim()) {
+    errorMsg.value = '请设置房间号'
+    return
+  }
+  if (!roomSecret.value.trim()) {
     errorMsg.value = '请设置房间密码'
     return
   }
@@ -63,7 +77,6 @@ async function handleHost() {
   errorMsg.value = ''
 
   try {
-    // 加载选中的战役
     await campaignStore.loadCampaign(selectedCampaignId.value)
     const campaign = campaignStore.currentCampaign
     if (!campaign) {
@@ -71,18 +84,11 @@ async function handleHost() {
       errorMsg.value = '加载战役失败'
       return
     }
-    // 解析 GM 密码后缀（host 模式：用基础密码 + GM 作为 DM 权限）
-    const trimmed = password.value.trim()
-    let gm = false
-    let room = trimmed
-    if (room.toUpperCase().endsWith('GM')) {
-      gm = true
-      room = room.slice(0, -2)
-    }
-    cloud.roomPassword = room
-    cloud.setGM(gm)
+    // host 模式：房间号即路径，密码单独存储
+    cloud.roomPassword = roomId.value.trim()
+    cloud.roomSecret = roomSecret.value.trim()
+    cloud.setGM(true)
 
-    // 初始化房间
     await cloud.initRoomFromCampaign(campaign)
     step.value = 'success'
   } catch (e: any) {
@@ -124,15 +130,27 @@ function handleClose() {
         </div>
 
         <div class="form-group">
-          <label>{{ mode === 'join' ? '房间密码' : '设置房间密码' }}</label>
+          <label>{{ mode === 'join' ? '房间号' : '设置房间号' }}</label>
           <input
-            v-model="password"
+            v-model="roomId"
             type="text"
             class="input"
-            :placeholder="mode === 'join' ? '输入 DM 提供的密码' : '为你的房间设一个密码'"
+            :placeholder="mode === 'join' ? '输入 DM 提供的房间号' : '为你的房间设一个号'"
             @keydown.enter="mode === 'join' ? handleJoin() : handleHost()"
           />
-          <div class="hint">密码即房间号，所有人用相同密码连接同一存档</div>
+          <div class="hint">房间号用于标识存档，GM 在房间号后加 GM 登录（如 521321GM）</div>
+        </div>
+
+        <div class="form-group">
+          <label>{{ mode === 'join' ? '房间密码' : '设置房间密码' }}</label>
+          <input
+            v-model="roomSecret"
+            type="password"
+            class="input"
+            :placeholder="mode === 'join' ? '输入房间密码' : '设一个只有你知道的密码'"
+            @keydown.enter="mode === 'join' ? handleJoin() : handleHost()"
+          />
+          <div class="hint">密码用于防止他人误进入你的房间</div>
         </div>
 
         <!-- host 模式：选择战役 -->
@@ -176,7 +194,7 @@ function handleClose() {
       <div v-else-if="step === 'success'" class="modal-body center-body">
         <div class="success-icon">✅</div>
         <p>{{ mode === 'join' ? '已加入房间！' : '房间已创建！' }}</p>
-        <p class="success-detail">密码: {{ password }}</p>
+        <p class="success-detail">房间号: {{ roomId }}</p>
         <button class="btn btn-primary" @click="handleClose">完成</button>
       </div>
 
