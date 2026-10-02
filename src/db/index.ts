@@ -47,12 +47,15 @@ function now(): string {
 export async function loadCampaign(id: string): Promise<Campaign> {
   const campaign = await db.campaigns.get(id)
   if (!campaign) throw new Error(`战役不存在: ${id}`)
-  return campaign
+  // 确保返回普通对象（非 Dexie 代理）
+  return JSON.parse(JSON.stringify(campaign))
 }
 
 export async function saveCampaign(campaign: Campaign): Promise<void> {
   campaign.updated_at = now()
-  await db.campaigns.put(campaign)
+  // 脱去 Vue reactive proxy，IndexedDB 结构化克隆无法处理 Proxy 对象
+  const plain = JSON.parse(JSON.stringify(campaign))
+  await db.campaigns.put(plain)
 }
 
 export async function deleteCampaign(id: string): Promise<void> {
