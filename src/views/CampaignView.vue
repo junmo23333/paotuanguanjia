@@ -421,4 +421,83 @@ function goHome() {
 }
 
 .empty-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ─── 手机响应式 ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .campaign-layout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .character-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    overflow: visible;
+  }
+
+  /* 侧边栏头部改为可横向滚动的紧凑模式 */
+  .sidebar-header {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px !important;
+  }
+
+  .campaign-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .sidebar-special {
+    display: flex !important;
+    gap: 6px;
+    padding: 8px 14px !important;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .overview-entry,
+  .warehouse-entry,
+  .shop-entry {
+    flex: 0 0 auto;
+    min-width: 130px;
+    padding: 10px 12px !important;
+  }
+
+  .sidebar-divider {
+    padding: 6px 14px !important;
+  }
+
+  /* 侧边栏中的角色列表横向滚动 */
+  .sidebar-divider + ul,
+  .sidebar-divider ~ ul,
+  .character-list {
+    display: flex !important;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 8px 14px 12px !important;
+    flex-wrap: nowrap;
+  }
+
+  /* 主内容区 */
+  .content-area {
+    width: 100%;
+    min-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .empty-state {
+    padding: 40px 20px !important;
+  }
+}
 </style>

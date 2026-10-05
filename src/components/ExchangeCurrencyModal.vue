@@ -26,13 +26,15 @@ const toCurrency = computed(() =>
   currencies.value.find(c => c.id === toCurrencyId.value)
 )
 
-// 合法目标币种：汇率必须成整数倍
+// 合法目标币种：汇率必须成整数倍且同一 kind 系统（金钱 ⇄ 金钱、经验 ⇄ 经验）
 const validTargets = computed(() => {
-  if (!fromCurrency.value) return []
+  const from = fromCurrency.value
+  if (!from) return []
   return currencies.value.filter(c => {
     if (c.id === fromCurrencyId.value) return false
-    if (c.exchange_rate <= 0 || !fromCurrency.value || fromCurrency.value.exchange_rate <= 0) return false
-    const ratio = fromCurrency.value.exchange_rate / c.exchange_rate
+    if (c.kind !== from.kind) return false
+    if (c.exchange_rate <= 0 || from.exchange_rate <= 0) return false
+    const ratio = from.exchange_rate / c.exchange_rate
     const r = Math.round(ratio)
     return Math.abs(ratio - r) < 0.0001 && r > 0
   })
@@ -79,6 +81,10 @@ async function submit() {
   error.value = ''
   if (!fromCurrencyId.value) { error.value = '请选择源币种'; return }
   if (!toCurrencyId.value) { error.value = '请选择目标币种'; return }
+  if (toCurrency.value && fromCurrency.value && toCurrency.value.kind !== fromCurrency.value.kind) {
+    error.value = '金钱和经验不能互相兑换'
+    return
+  }
   const amt = parseFloat(amount.value)
   if (!amt || amt <= 0) { error.value = '请输入有效金额'; return }
   if (amt > sourceBalance.value) {
@@ -152,7 +158,8 @@ async function submit() {
 
         <div v-if="error" class="msg error">{{ error }}</div>
 
-        <div class="tip">💡 兑换要求两种货币汇率成整数倍（如 1 银 = 1000 文，1 金 = 10000 文）。若目标列表为空，说明当前源币种没有合法可兑换的目标。</div>
+        <div class="tip">💡 兑换要求两种货币汇率成整数倍（如 1 银 = 1000 文，1 金 = 10000 文）。<br>
+          ⚡ <strong>金钱与经验是独立的两个系统，不能互相兑换。</strong>请从源币种同系统的货币中选择。</div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="emit('close')">取消</button>

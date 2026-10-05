@@ -78,8 +78,9 @@ function formatTime(iso: string): string {
   })
 }
 
-function getCurrencySymbol(id: string): string {
-  return store.currentCampaign?.currencies.find(c => c.id === id)?.symbol || '?'
+function getCurrencySymbol(id: string): { symbol: string; kind: 'currency' | 'experience' } {
+  const c = store.currentCampaign?.currencies.find(c => c.id === id)
+  return { symbol: c?.symbol || '?', kind: (c?.kind || 'currency') as 'currency' | 'experience' }
 }
 
 // 按 day 分组（从大到小）
@@ -153,7 +154,9 @@ const totalExpense = computed(() => {
           <div class="lr-info">
             <div class="lr-reason">{{ entry.reason || '（无备注）' }}</div>
             <div class="lr-meta">
-              <span class="badge">{{ getCurrencySymbol(entry.currency_id) }}</span>
+              <span class="badge" :class="getCurrencySymbol(entry.currency_id).kind === 'experience' ? 'badge-xp' : ''">
+                {{ getCurrencySymbol(entry.currency_id).kind === 'experience' ? '⚡' : '' }}{{ getCurrencySymbol(entry.currency_id).symbol }}
+              </span>
               <span class="lr-time">{{ formatTime(entry.timestamp) }}</span>
             </div>
           </div>
@@ -198,9 +201,16 @@ const totalExpense = computed(() => {
           <div class="form-row">
             <label>币种</label>
             <select class="input" v-model="form.currency_id">
-              <option v-for="c in store.currentCampaign?.currencies ?? []" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </option>
+              <optgroup v-if="(store.currentCampaign?.currencies ?? []).filter(c => c.kind === 'currency').length > 0" label="💰 金钱">
+                <option v-for="c in (store.currentCampaign?.currencies ?? []).filter(c => c.kind === 'currency')" :key="c.id" :value="c.id">
+                  {{ c.name }} ({{ c.symbol }})
+                </option>
+              </optgroup>
+              <optgroup v-if="(store.currentCampaign?.currencies ?? []).filter(c => c.kind === 'experience').length > 0" label="⚡ 经验">
+                <option v-for="c in (store.currentCampaign?.currencies ?? []).filter(c => c.kind === 'experience')" :key="c.id" :value="c.id">
+                  {{ c.name }} ({{ c.symbol }})
+                </option>
+              </optgroup>
             </select>
           </div>
 

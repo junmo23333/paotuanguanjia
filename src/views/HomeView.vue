@@ -231,4 +231,15 @@ function formatDate(iso: string): string {
   display: flex;
   gap: 8px;
 }
+
+/* ─── 手机响应式 ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .campaigns-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  .campaign-card {
+    padding: 14px !important;
+  }
+}
 </style>

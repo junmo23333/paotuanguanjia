@@ -437,8 +437,12 @@ export async function exchangeCurrency(
   const campaign = await loadCampaign(campaignId)
   const timestamp = now()
 
-  const fromRate = campaign.currencies.find(c => c.id === fromCurrencyId)?.exchange_rate
-  const toRate = campaign.currencies.find(c => c.id === toCurrencyId)?.exchange_rate
+  const fromCur = campaign.currencies.find(c => c.id === fromCurrencyId)
+  const toCur = campaign.currencies.find(c => c.id === toCurrencyId)
+  if (!fromCur || !toCur) throw new Error('货币不存在')
+  if (fromCur.kind !== toCur.kind) throw new Error('金钱和经验不能互相兑换')
+  const fromRate = fromCur.exchange_rate
+  const toRate = toCur.exchange_rate
   if (!fromRate || !toRate) throw new Error('货币不存在')
   if (fromRate <= 0 || toRate <= 0) throw new Error('货币汇率必须大于 0')
 

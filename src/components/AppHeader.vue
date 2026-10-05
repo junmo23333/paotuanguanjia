@@ -103,4 +103,22 @@ const showImportExport = ref(false)
   align-items: center;
   gap: 8px;
 }
+
+/* ─── 手机响应式 ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 12px;
+    height: 46px;
+  }
+
+  .brand-name { font-size: 14px !important; }
+
+  .breadcrumb {
+    font-size: 12px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 50vw;
+  }
+}
 </style>

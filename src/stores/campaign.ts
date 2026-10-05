@@ -97,14 +97,19 @@ export const useCampaignStore = defineStore('campaign', () => {
 
   async function createCampaign(name: string, ruleSystem: string, icon?: string, description = '') {
     const id = generateId()
+    const goldId = generateId()
+    const xpId = generateId()
     const campaign: Campaign = {
       id,
       name,
       icon: icon || '🎴',
       rule_system: ruleSystem,
       description,
-      currencies: [],
-      base_currency: '',
+      currencies: [
+        { id: goldId, name: '金币', symbol: 'GP', exchange_rate: 1, kind: 'currency' },
+        { id: xpId, name: '经验', symbol: 'XP', exchange_rate: 1, kind: 'experience' },
+      ],
+      base_currency: goldId,
       characters: [],
       warehouse: { name: '团队仓库', description: '', currencies: [], items: [] },
       created_at: now(),

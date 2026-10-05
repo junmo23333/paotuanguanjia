@@ -1,10 +1,13 @@
 // ─── 数据模型类型定义 ────────────────────────────────────────────────────────
 
+export type CurrencyKind = 'currency' | 'experience'
+
 export interface Currency {
   id: string
-  name: string       // 如 "金币(GP)"
-  symbol: string     // 如 "GP"
+  name: string       // 如 "金币(GP)" 或 "经验值(XP)"
+  symbol: string     // 如 "GP" 或 "XP"
   exchange_rate: number  // 相对基准货币的汇率
+  kind: CurrencyKind  // 'currency' = 金钱系统 / 'experience' = 经验系统（不能互相转换）
 }
 
 export interface LedgerEntry {

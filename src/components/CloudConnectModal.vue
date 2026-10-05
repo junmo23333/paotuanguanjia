@@ -307,4 +307,15 @@ function handleClose() {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
+
+/* ─── 手机响应式 ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .modal-content,
+  .cloud-modal-content,
+  .modal-body {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    max-height: 85vh !important;
+  }
+}
 </style>

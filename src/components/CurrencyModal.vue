@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useCampaignStore } from '../stores/campaign'
-import type { Currency } from '../types'
+import type { Currency, CurrencyKind } from '../types'
 
 defineEmits<{ close: [] }>()
 
@@ -15,11 +15,13 @@ const showNested = ref(false)
 const nestedMode = ref<'add' | 'edit'>('add')
 const editingCurrency = ref<Currency | null>(null)
 
-const form = ref({ name: '', symbol: '', exchange_rate: '1' })
+const form = ref<{ name: string; symbol: string; exchange_rate: string; kind: CurrencyKind }>({
+  name: '', symbol: '', exchange_rate: '1', kind: 'currency',
+})
 const error = ref('')
 
 function resetForm() {
-  form.value = { name: '', symbol: '', exchange_rate: '1' }
+  form.value = { name: '', symbol: '', exchange_rate: '1', kind: 'currency' }
   error.value = ''
 }
 
@@ -38,7 +40,12 @@ function openEdit(c: Currency) {
   resetForm()
   editingCurrency.value = c
   nestedMode.value = 'edit'
-  form.value = { name: c.name, symbol: c.symbol, exchange_rate: c.exchange_rate.toString() }
+  form.value = {
+    name: c.name,
+    symbol: c.symbol,
+    exchange_rate: c.exchange_rate.toString(),
+    kind: c.kind,
+  }
   showNested.value = true
 }
 
@@ -46,15 +53,16 @@ function saveNested() {
   const name = form.value.name.trim()
   const symbol = form.value.symbol.trim()
   const exchange_rate = parseFloat(form.value.exchange_rate)
+  const expKind = form.value.kind
 
   if (!name) { error.value = '请输入货币名称'; return }
   if (!symbol) { error.value = '请输入货币符号'; return }
   if (isNaN(exchange_rate) || exchange_rate <= 0) { error.value = '汇率必须大于 0'; return }
 
   if (editingCurrency.value) {
-    store.updateCurrency({ ...editingCurrency.value, name, symbol, exchange_rate })
+    store.updateCurrency({ ...editingCurrency.value, name, symbol, exchange_rate, kind: expKind })
   } else {
-    store.addCurrency({ name, symbol, exchange_rate })
+    store.addCurrency({ name, symbol, exchange_rate, kind: expKind })
   }
   showNested.value = false
   editingCurrency.value = null
@@ -94,7 +102,10 @@ function remove(id: string) {
           <div v-for="c in currencies" :key="c.id" class="currency-row">
             <div class="cr-info">
               <div class="cr-name">
-                {{ c.name }}
+                {{ c.kind === 'experience' ? '⚡' : '💰' }} {{ c.name }}
+                <span class="kind-badge" :class="`kind-${c.kind}`">
+                  {{ c.kind === 'experience' ? '经验' : '金钱' }}
+                </span>
                 <span v-if="store.currentCampaign?.base_currency === c.id" class="base-badge">基准</span>
               </div>
               <div class="cr-meta">
@@ -138,6 +149,23 @@ function remove(id: string) {
         <div class="form-row">
           <label>名称</label>
           <input class="input" v-model="form.name" placeholder="例如：金币" autofocus>
+        </div>
+        <div class="form-row">
+          <label>所属系统</label>
+          <div class="kind-picker">
+            <button
+              type="button"
+              class="kind-btn"
+              :class="{ active: form.kind === 'currency' }"
+              @click="form.kind = 'currency'"
+            >💰 金钱</button>
+            <button
+              type="button"
+              class="kind-btn"
+              :class="{ active: form.kind === 'experience' }"
+              @click="form.kind = 'experience'"
+            >⚡ 经验</button>
+          </div>
         </div>
         <div class="form-row-2">
           <div class="form-row">
@@ -269,4 +297,41 @@ function remove(id: string) {
 
 .msg { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; }
 .msg.error { background: #fef0f0; color: var(--color-danger); }
+
+/* Kind 选择器 */
+.kind-picker { display: flex; gap: 8px; }
+.kind-btn {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.kind-btn:hover { border-color: var(--color-primary); }
+.kind-btn.active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.kind-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.kind-badge.kind-currency {
+  background: #fef3e0;
+  color: #d97706;
+}
+.kind-badge.kind-experience {
+  background: #ede9fe;
+  color: #6d28d9;
+}
 </style>

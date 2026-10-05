@@ -35,14 +35,14 @@ const campaignCurrencies = computed(() => store.currentCampaign?.currencies ?? [
 const baseCurrency = computed(() => {
   const c = store.currentCampaign
   if (!c) return null
-  return c.currencies.find(x => x.id === c.base_currency) ?? c.currencies[0] ?? null
+  return c.currencies.find(x => x.id === c.base_currency) ?? c.currencies.find(x => x.kind === 'currency') ?? c.currencies[0] ?? null
 })
 
-// 计算该角色的货币余额
+// 计算该角色的货币余额，按 kind 分组（金钱 / 经验）
 const currencyBalances = computed(() => {
-  const balances: Record<string, { id: string; name: string; symbol: string; balance: number }> = {}
+  const balances: Record<string, { id: string; name: string; symbol: string; balance: number; kind: 'currency' | 'experience' }> = {}
   for (const c of campaignCurrencies.value) {
-    balances[c.id] = { id: c.id, name: c.name, symbol: c.symbol, balance: 0 }
+    balances[c.id] = { id: c.id, name: c.name, symbol: c.symbol, balance: 0, kind: c.kind }
   }
   for (const entry of props.character.ledger) {
     if (balances[entry.currency_id]) {
@@ -56,14 +56,18 @@ const currencyBalances = computed(() => {
   return Object.values(balances)
 })
 
-// 总资产（换算为基准货币）
+const moneyBalances = computed(() => currencyBalances.value.filter(b => b.kind === 'currency'))
+const experienceBalances = computed(() => currencyBalances.value.filter(b => b.kind === 'experience'))
+
+// 总资产（仅金钱） - 换算为基准货币
 const totalAssets = computed(() => {
   const base = baseCurrency.value
+  if (!base) return '0.00'
   const rate = base?.exchange_rate || 1
   let total = 0
   for (const entry of props.character.ledger) {
     const cur = campaignCurrencies.value.find(c => c.id === entry.currency_id)
-    if (!cur) continue
+    if (!cur || cur.kind !== 'currency') continue
     const curRate = cur.exchange_rate || 1
     const converted = entry.amount * (curRate / rate)
     total += entry.entry_type === 'income' ? converted : -converted
@@ -114,8 +118,8 @@ function handleCharacterUpdate(updated: Character) {
           <div class="ov-label">💰 总资产</div>
           <div class="ov-value">{{ totalAssets }} {{ baseCurrency?.symbol || 'GP' }}</div>
         </div>
-        <div class="currency-balances">
-          <div v-for="bal in currencyBalances" :key="bal.symbol" class="bal-chip">
+        <div v-if="moneyBalances.length > 0" class="currency-balances">
+          <div v-for="bal in moneyBalances" :key="bal.id" class="bal-chip">
             <span class="bal-symbol">{{ bal.symbol }}</span>
             <span class="bal-amount" :class="bal.balance >= 0 ? 'amount-income' : 'amount-expense'">
               {{ bal.balance.toFixed(2) }}
@@ -125,6 +129,22 @@ function handleCharacterUpdate(updated: Character) {
               title="兑换货币（手动）"
               @click="openExchange(bal.id)"
             >🔄</button>
+          </div>
+        </div>
+        <div v-if="experienceBalances.length > 0" class="xp-section">
+          <div class="xp-label">⚡ 修为</div>
+          <div class="currency-balances">
+            <div v-for="bal in experienceBalances" :key="bal.id" class="bal-chip xp">
+              <span class="bal-symbol">{{ bal.symbol }}</span>
+              <span class="bal-amount" :class="bal.balance >= 0 ? 'amount-income' : 'amount-expense'">
+                {{ bal.balance.toFixed(2) }}
+              </span>
+              <button
+                class="bal-exchange-btn"
+                title="兑换货币（手动）"
+                @click="openExchange(bal.id)"
+              >🔄</button>
+            </div>
           </div>
         </div>
       </div>
@@ -229,6 +249,19 @@ function handleCharacterUpdate(updated: Character) {
   border-radius: 20px;
   font-size: 12px;
 }
+.bal-chip.xp { background: #ede9fe; }
+.xp-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border);
+}
+.xp-label {
+  font-size: 10px;
+  color: #6d28d9;
+  font-weight: 600;
+  text-align: right;
+  margin-bottom: 3px;
+}
 .bal-symbol { color: var(--color-text-muted); font-size: 10px; }
 .bal-exchange-btn {
   background: none;
@@ -280,5 +313,42 @@ function handleCharacterUpdate(updated: Character) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* ─── 手机响应式 ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .character-panel {
+    padding: 12px !important;
+    gap: 12px;
+  }
+
+  .char-header {
+    flex-direction: column !important;
+    gap: 14px !important;
+    padding: 14px !important;
+  }
+
+  .char-header-left { width: 100%; }
+
+  .char-avatar { font-size: 36px !important; }
+  .char-name { font-size: 17px !important; }
+
+  .currency-overview {
+    width: 100% !important;
+    align-items: stretch !important;
+  }
+
+  .overview-item { text-align: left !important; }
+  .ov-value { font-size: 18px !important; }
+
+  .currency-balances {
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  .bal-chip { font-size: 13px !important; }
+
+  .tabs { gap: 4px; }
+  .tab-btn { padding: 8px 10px !important; font-size: 13px !important; }
 }
 </style>

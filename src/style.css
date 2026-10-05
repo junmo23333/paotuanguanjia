@@ -165,3 +165,53 @@ body {
 }
 .empty-state .empty-icon { font-size: 48px; opacity: 0.4; }
 .empty-state p { font-size: 14px; }
+
+/* ─── 响应式（手机适配）──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --color-base-font: 14px;
+  }
+
+  html, body {
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* App 根部留出安全区 */
+  #app {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* 手机上禁用双指缩放带来的页面缩放 */
+  input, textarea, select {
+    font-size: 16px !important; /* iOS 防缩放 */
+  }
+
+  /* 主容器高度计算 */
+  .app-main { height: calc(100dvh - 50px); }
+
+  /* 按钮加大点击区 */
+  .btn { padding: 10px 16px; }
+  .btn-sm { padding: 6px 12px; }
+
+  /* 滚动重设 */
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
+
+  /* 全局 modal 兑底：手机宽度 */
+  .modal-content,
+  .modal-body,
+  .cloud-modal-content,
+  .settings-modal-content,
+  .merge-modal-content {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    max-height: 88vh !important;
+  }
+}
+
+@media (max-width: 480px) {
+  html, body { font-size: 13px; }
+}
